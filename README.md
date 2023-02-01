@@ -67,9 +67,15 @@ Consistent Number of Freezing Days
 - Freezing days increase potential for water line breakage
 - Number of lowest temperature days decreasing
 
+<<<<<<< HEAD
 ![Cold Month](images/g.coldmonth.png)
 ![Freeze Days](images/g.frezdays.png)
 ![SubZero Days](images/g.subzdays.png)
+=======
+![Cold Month](images/g.coldmonth)
+![Freeze Days](images/g.frezdays.png)
+![SubZero Days](images/g.g.subzdays.png)
+>>>>>>> 5bab91f447caab668c1f644485a88449d81f79cb
 
 ## Limitations of Analysis
 
