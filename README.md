@@ -20,7 +20,7 @@ Heavy Rain Days Result in Sewer Overflows
 - Overflows on days with more than 0.5" rainfall
 - Acknowledge occurrence of multi-year highs
 
-![Rain Amt](g.hist.rainDay.png)
+![Rain Amt](images/g.hist.rainDay.png)
 
 No Trend in Heavy Rain Days
 - Heavy rain days:
@@ -28,7 +28,7 @@ No Trend in Heavy Rain Days
     - Impact combined sewer overflow occurrences
 - Number of heavy rain days not increasing
 - Expect median 16 rain days (11-18) per year
-![Heavy Rain Days](g.hvy_prpc.png)
+![Heavy Rain Days](images/g.hvy_prpc.png)
 
 
 No Trend in Heavy Rain Days
@@ -37,7 +37,7 @@ No Trend in Heavy Rain Days
 - Infrequent occurrences of 2" rainfall / day
 - Median heavy day rainfall under 1"
 
-![Heavy Rain Amts](g.hvy_prpbox.png)
+![Heavy Rain Amts](images/g.hvy_prpbox.png)
 
 Consistent Days Between Heavy Rainfall
 ========================================================
@@ -45,32 +45,32 @@ Consistent Days Between Heavy Rainfall
 - Consecutive  rain days of rain prevent sewers from returning to baseline capacity 
 - Increase the likelihood of an overflow event
 
-![Days Btw Rain](g.prcp_dayBTW.png)
+![Days Btw Rain](images/g.prcp_dayBTW.png)
 
 ## Temperature Analysis and Impact
 
 - Increase of 1 Deg. F over 50 years  
 - Aligned with common estimates for world temperature increases
 
-![Mean Temp](g.mtemp.png)
+![Mean Temp](images/g.mtemp.png)
 
 - Temperatures above 100 °F occurred in June - August
 - Cooling facilities for crews on hot days
 - Equipment maintenance challenges
 
-![Mean Temp](g.hotmonth.png)
+![Mean Temp](images/g.hotmonth.png)
 
 - No statistical change in number of days above 100  °F
-![Mean Temp](g.hotdays.png)
+![Mean Temp](images/g.hotdays.png)
 
 
 Consistent Number of Freezing Days
 - Freezing days increase potential for water line breakage
 - Number of lowest temperature days decreasing
 
-![Mean Temp](g.coldmonth)
-![Mean Temp](g.frezdays.png)
-![Mean Temp](g.g.subzdays.png)
+![Mean Temp](images/g.coldmonth)
+![Mean Temp](images/g.frezdays.png)
+![Mean Temp](images/g.g.subzdays.png)
 
 ## Limitations of Analysis
 
