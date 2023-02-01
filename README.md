@@ -71,9 +71,9 @@ Consistent Number of Freezing Days
 ![Freeze Days](images/g.frezdays.png)
 ![SubZero Days](images/g.subzdays.png)
 =======
-![Cold Month](images/g.coldmonth)
+![Cold Month](images/g.coldmonth.png)
 ![Freeze Days](images/g.frezdays.png)
-![SubZero Days](images/g.g.subzdays.png)
+![SubZero Days](images/g.subzdays.png)
 
 ## Limitations of Analysis
 
