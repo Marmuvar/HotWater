@@ -46,6 +46,10 @@ wedat<-wedat.clean%>%select(DATE, PRCP, TMAX, TMIN)%>%
 ```
 
 ```{r fxn_for_report, echo=FALSE, include=FALSE}
+#Constants for Graphic Output
+TITLE_SIZE <- 8
+AXIS_SIZE <- 6
+
 #do_lp provides standard scatterplot output for this report
 #pre: tb is defined tibble containing structure from import section
 #pre: ycol is a list of columns to plot as y variable
@@ -68,7 +72,7 @@ do_lp2<-function(tb, xCol, yMaxCol, yMinCol, labMain, brk=c(-30,110), a=1, xlab 
                           breaks=seq(from=brk[1], to=brk[2], by=10), 
                           name=ylab)+
        labs(title=labMain)+
-       theme(title = element_text())
+       theme(axis.text=element_text(size=AXIS_SIZE), title = element_text(size=TITLE_SIZE))
   #%>%
     #show()
 
@@ -95,7 +99,7 @@ do_lp1<-function(tb, xCol, yCol, labMain, brk=c(-30,110), a=1, mt=1, fCol="purpl
                           breaks=seq(from=brk[1], to=brk[2], by=mt), 
                           name=ylab)+
        labs(title=labMain)+
-       theme(title = element_text())
+       theme(axis.text=element_text(size=AXIS_SIZE), title = element_text(size=TITLE_SIZE))
   #%>%
     #show()
 
@@ -118,9 +122,9 @@ do_bxp1<-function(tb, xCol, yCol, labMain, brk=c(-30,110), fCol="red", a=1, mt=1
 
   ggplot(tb, aes(x=as.factor(!!xCol), y=!!yCol)) +
       geom_boxplot(fill=fCol)+
-      scale_y_continuous(limits=brk, breaks=seq(from=brk[1], to=brk[2], by=mt))+
+      scale_y_continuous(limits=brk, breaks=seq(from=brk[1], to=brk[2], by=mt)) +
       labs(title=labMain, x="YEAR")+
-      theme(axis.text=element_text(angle=90, size=8), title = element_text())
+      theme(axis.text=element_text(angle=90, size=4), title = element_text(size=TITLE_SIZE))
 }
 
 #https://stackoverflow.com/questions/52919899/ggplot2-display-every-nth-value-on-discrete-axis
@@ -149,7 +153,7 @@ do_colp1<-function(tb, xCol, yCol, labMain, brk=c(0,50), fCol="red", mt=10){
       geom_col(fill=fCol)+
       scale_y_continuous(limits=brk, breaks=seq(from=brk[1], to=brk[2], by=mt))+
       labs(title=labMain, x="YEAR")+
-      theme(axis.text=element_text(angle=90, size=8), title = element_text())
+      theme(axis.text=element_text(angle=90, size=AXIS_SIZE), title = element_text(size = TITLE_SIZE))
 }
 
 do_colp_d<-function(tb, xCol, yCol, labMain, brk=c(0,50), fCol="red", mt=10){
@@ -161,7 +165,7 @@ do_colp_d<-function(tb, xCol, yCol, labMain, brk=c(0,50), fCol="red", mt=10){
       scale_y_continuous(limits=brk, breaks=seq(from=brk[1], to=brk[2], by=mt))+
       scale_x_discrete(breaks=every_nth(n=24))+
       labs(title=labMain, x="YEAR")+
-      theme(axis.text=element_text(angle=90, size=8), title = element_text())
+      theme(axis.text=element_text(angle=90, size=AXIS_SIZE), title = element_text(size=TITLE_SIZE))
 }
 ```
 ```{r module_4_investigate, fig.width=18, include=FALSE, echo=FALSE}
@@ -312,6 +316,7 @@ g.jantemp<-   wedat%>%
               do_bxp1(YEAR, TMIN, 
                     paste("Monthly Low Temperature Ranges for ",month(1, label=TRUE)),
                     brk=c(-30,70), fCol="blue")
+
 g.aprtemp<-   wedat%>%
               filter(MONTH==4)%>%
               do_bxp1(YEAR, TMIN, 
@@ -433,7 +438,8 @@ g.pcpt50yr<-  wedat %>%
 g.hist.rainDay<-  rain_day%>%filter(rain_per_day>0)%>%  
                       ggplot() +
                       geom_histogram(aes(x=rain_per_day),binwidth=0.10, fill="purple", color="black")+
-                      labs(title="Amount of Rain per Precipitation Event")
+                      labs(title="Amount of Rain per Precipitation Event") +
+                      theme(axis.text=element_text(size=AXIS_SIZE), title = element_text(size=TITLE_SIZE))
 
 
 g.hvy_prpc<-  rain_day%>%filter(rain_per_day>0.5)%>%
@@ -454,7 +460,8 @@ g.hvy_prpbox<-  rain_day%>%filter(rain_per_day>0.5)%>%
                      brk=c(0,5), 
                      labMain="Rain Amount during Heavy Storms (Daily Rain > 0.5\")",
                      fCol="purple", 
-                     mt=1)  
+                     mt=1) 
+
 
 g.cold_prcp<-wedat%>%
                 filter(TMIN<=32&PRCP>0)%>%
@@ -463,7 +470,8 @@ g.cold_prcp<-wedat%>%
                 ggplot(aes(x=YEAR))+
                   geom_col(aes(y=`days`), fill="grey")+
                   labs(title="Cold with Precipitation Days (32 °F and Below)",
-                       caption = "Data unavailable from 08-13-1997 to 03-31-1998")
+                       caption = "Data unavailable from 08-13-1997 to 03-31-1998")+
+                  theme(title = element_text(size=TITLE_SIZE))
 
 ```
 
@@ -476,11 +484,11 @@ figs <- list(g.mtemp, g.coldmonth, g.hotmonth, g.hotdays, g.frezdays, g.subzdays
           g.cold_prcp, g.pcpt50yr, g.hist.rainDay, g.hvy_prpc, g.hvy_prpbox, 
           g.prcp_dayBTW)
 
-store_plot<-function(fig_name){
+store_plot <- function(fig_name){
   loc <- paste0("images/",fig_name,".png")
   #png(loc, width = 3, height = 4, units = "in", res = 144)
   png(loc, width = 4, height = 3, units = "in", res = 144)
-  print(eval(sym(fig_name))+theme_gray(base_size = 8))
+  print(eval(sym(fig_name)))
   dev.off()
 }
 
