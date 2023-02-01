@@ -1,0 +1,634 @@
+---
+title: "Maintaining Sewer Outflows through Consistent Weather Conditions in Cincinnati"
+author: "Mark Benmuvhar"
+date: "4/27/2022"
+output:
+  slidy_presentation: default
+  beamer_presentation: default
+---
+
+```{r setup, echo=FALSE, include=FALSE}
+#Basic packages for data
+library(tidyverse)
+library(ggplot2)
+library(lubridate)
+library(magrittr)
+
+# Formatting and Visualizations
+library(viridis)          # Need for viridis color palette in word cloud
+library(knitr)            # Need to manage text outputs in RMarkdown
+library(formatR)          # To manage margins
+
+knitr::opts_chunk$set(echo = FALSE, tidy.opts=list(width.cutoff=70),tidy=TRUE, fig.width=8, fig.height=6)
+```
+```{r data_import, echo=FALSE, include=FALSE}
+# Import Data
+# Import data for CINCINNATI MUNICIPAL AIRPORT LUNKEN FIELD, OH US
+# Note that average temp was not collected until 1998 and should be omitted.
+# Some discontinuities prior to 1958, so filter data after this point.
+# End list in december 2018 for an even 60 years reporting
+# Snow is not recorded after 2000, so remove this from list.
+
+#Import data.
+#Create Month/Date fields for grouping statistics
+#Add additional statistics for visualization
+##RANG shows width of temperature extremes
+wedat.clean<-read.csv("2931056.csv")
+wedat<-wedat.clean%>%select(DATE, PRCP, TMAX, TMIN)%>%
+                     na.omit()%>%
+                     mutate(DATE=ymd(DATE))%>%
+                     filter(DATE %within% interval(ymd("1958-01-01"), ymd("2018-12-31")))%>%
+                     mutate(YEAR=year(DATE),
+                            MONTH=month(DATE),
+                            MDAY=mday(DATE),
+                            YDAY=yday(DATE),
+                            RANG=TMAX-TMIN)
+```
+
+```{r fxn_for_report, echo=FALSE, include=FALSE}
+#do_lp provides standard scatterplot output for this report
+#pre: tb is defined tibble containing structure from import section
+#pre: ycol is a list of columns to plot as y variable
+#pre: fcol is a single column for fill mapping
+#pre: ccol is a single column for color mapping
+
+#see help file for aes describing quoting process
+
+do_lp2<-function(tb, xCol, yMaxCol, yMinCol, labMain, brk=c(-30,110), a=1, xlab = waiver(), ylab = waiver() ){
+  xCol<-enquo(xCol)
+  yMaxCol<-enquo(yMaxCol)
+  yMinCol<-enquo(yMinCol)
+  
+  ggplot(tb, aes(x=!!xCol))+
+       geom_point(aes(y=!!yMaxCol), color="red", alpha=a)+
+       geom_smooth(aes(y=!!yMaxCol),color="red",method="lm", formula =y~x)+   
+       geom_point(aes(y=!!yMinCol), color="blue", alpha=a)+
+       geom_smooth(aes(y=!!yMinCol),color="blue",method="lm", formula =y~x)+ 
+       scale_y_continuous(limits=c(brk), 
+                          breaks=seq(from=brk[1], to=brk[2], by=10), 
+                          name=ylab)+
+       labs(title=labMain)+
+       theme(title = element_text())
+  #%>%
+    #show()
+
+}
+
+#do_lp1 provides standard scatterplot of single range output for this report
+#pre: tb is defined tibble containing structure from import section
+#pre: ycol is a list of columns to plot as y variable
+#pre: fcol is a single column for fill mapping
+#pre: ccol is a single column for color mapping
+#pre: a is an alpha value, and mt is the y scale tick frequency
+#pre: break is y axis minimum and maximum ranges
+
+#see help file for aes describing quoting process
+
+do_lp1<-function(tb, xCol, yCol, labMain, brk=c(-30,110), a=1, mt=1, fCol="purple", xlab = waiver(), ylab = waiver()){
+  xCol<-enquo(xCol)
+  yCol<-enquo(yCol)
+
+  ggplot(tb, aes(x=!!xCol))+
+       geom_point(aes(y=!!yCol), color=fCol, alpha=a)+
+       geom_smooth(aes(y=!!yCol),color="black",method="lm", formula =y~x)+   
+       scale_y_continuous(limits=c(brk), 
+                          breaks=seq(from=brk[1], to=brk[2], by=mt), 
+                          name=ylab)+
+       labs(title=labMain)+
+       theme(title = element_text())
+  #%>%
+    #show()
+
+}
+
+#do_bxp1 provides standardized boxplot output of single temp groups for this report
+#pre: tb is defined tibble in long format containing structure from import section
+#pre: xCol is a list of columns to plot as x variable
+#pre: yCol is a list of columns to plot as y variable
+#pre: labMain is a descriptive plot title
+#pre: fCol is a single column listing fill colors.
+#pre: brk is a list containing from and to values for y axis
+#pre: fcol is a string for the plot fill color
+
+#see help file for aes describing quoting process
+
+do_bxp1<-function(tb, xCol, yCol, labMain, brk=c(-30,110), fCol="red", a=1, mt=10){
+  xCol<-enquo(xCol)
+  yCol<-enquo(yCol)
+
+  ggplot(tb, aes(x=as.factor(!!xCol), y=!!yCol)) +
+      geom_boxplot(fill=fCol)+
+      scale_y_continuous(limits=brk, breaks=seq(from=brk[1], to=brk[2], by=mt))+
+      labs(title=labMain, x="YEAR")+
+      theme(axis.text=element_text(angle=90, size=8), title = element_text())
+}
+
+#https://stackoverflow.com/questions/52919899/ggplot2-display-every-nth-value-on-discrete-axis
+#Accessed 4/19/2022
+every_nth <-function(n) {
+  #return list of TRUE followed by n-1 FALSE
+  return(function(x) {
+    x[c(TRUE, rep(FALSE, n - 1))]
+    })
+}
+
+#do_colp1 provides standardized column output of single temp groups for this report
+#pre: tb is defined tibble in long format containing structure from import section
+#pre: xCol is a list of columns to plot as x variable
+#pre: yCol is a list of columns to plot as y variable
+#pre: labMain is a descriptive plot title
+#pre: fCol is a single column listing fill colors.
+#pre: brk is a list containing from and to values for y axis
+#pre: fcol is a string for the plot fill color
+
+do_colp1<-function(tb, xCol, yCol, labMain, brk=c(0,50), fCol="red", mt=10){
+  xCol<-enquo(xCol)
+  yCol<-enquo(yCol)
+
+  ggplot(tb, aes(x=!!xCol, y=!!yCol)) +
+      geom_col(fill=fCol)+
+      scale_y_continuous(limits=brk, breaks=seq(from=brk[1], to=brk[2], by=mt))+
+      labs(title=labMain, x="YEAR")+
+      theme(axis.text=element_text(angle=90, size=8), title = element_text())
+}
+
+do_colp_d<-function(tb, xCol, yCol, labMain, brk=c(0,50), fCol="red", mt=10){
+  xCol<-enquo(xCol)
+  yCol<-enquo(yCol)
+
+  ggplot(tb, aes(x=!!xCol, y=!!yCol)) +
+      geom_col(fill=fCol)+
+      scale_y_continuous(limits=brk, breaks=seq(from=brk[1], to=brk[2], by=mt))+
+      scale_x_discrete(breaks=every_nth(n=24))+
+      labs(title=labMain, x="YEAR")+
+      theme(axis.text=element_text(angle=90, size=8), title = element_text())
+}
+```
+```{r module_4_investigate, fig.width=18, include=FALSE, echo=FALSE}
+#Filtered tibble of freezing days with precipitation
+cold_prcp<-   wedat%>%
+                filter(TMIN<=32&PRCP>0)%>%
+                group_by(YEAR)%>%
+                summarize(`days`=n())
+
+#filter data for presence of any rainfall. 
+rain_day<-wedat%>%
+  select(DATE, PRCP)%>%
+  filter(PRCP>0)%>%
+  mutate(days_between=NA, rain_per_day=NA)
+
+for(i in 2:length(rain_day$PRCP)){
+  rain_day$days_between[i]<-rain_day$DATE[i]-rain_day$DATE[i-1]
+  rain_day$rain_per_day[i]<-as.numeric(rain_day$PRCP[i]/as.numeric(rain_day$days_between[i]))
+}
+#Manually scrub data set due to gap in available data.  
+rain_day<-rain_day%>%mutate(days_between=ifelse(days_between==234, NA, days_between))
+
+heavy_rain_day<- rain_day%>%filter(rain_per_day>0.5)%>%
+                 group_by(YEAR=year(DATE))%>%
+                 summarise(n=n())
+
+#filter data for presence of significant rainfall.
+#0.1 inches is arbitrary.
+low_rain_day<-rain_day%>%filter(PRCP>0.1)
+
+for(i in 2:length(low_rain_day$PRCP)){
+  low_rain_day$days_between[i]<-low_rain_day$DATE[i]-low_rain_day$DATE[i-1]
+  low_rain_day$rain_per_day[i]<-as.numeric(low_rain_day$PRCP[i]/as.numeric(low_rain_day$days_between[i]))
+}
+#Manually scrub data set due to gap in available data.  
+low_rain_day<-low_rain_day%>%mutate(days_between=ifelse(days_between==238, NA, days_between))
+
+#filter data for heavy rainfall.
+#0.5 inches is arbitrary cutoff based on sewer overflow
+hvy_rain_btw<-rain_day%>%filter(PRCP>0.5)
+
+for(i in 2:length(hvy_rain_btw$PRCP)){
+  hvy_rain_btw$days_between[i]<-hvy_rain_btw$DATE[i]-hvy_rain_btw$DATE[i-1]
+}
+#Manually scrub data set due to gap in available data.  
+hvy_rain_btw<-low_rain_day%>%mutate(days_between=ifelse(days_between==294, NA, days_between))
+
+#ad hoc calculations for median and quantile amounts.  
+median(heavy_rain_day$n)
+quantile(heavy_rain_day$n, probs=seq(0,1, 0.25))
+
+median(rain_day$days_between, na.rm=TRUE)
+quantile(rain_day$days_between, probs=seq(0,1, 0.25), na.rm=TRUE)
+
+median(low_rain_day$days_between, na.rm=TRUE)
+quantile(low_rain_day$days_between, probs=seq(0,1, 0.25), na.rm=TRUE)
+
+median(hvy_rain_btw$days_between, na.rm=TRUE)
+quantile(hvy_rain_btw$days_between, probs=seq(0,1, 0.25), na.rm=TRUE)
+      
+```
+
+```{r figs_for_report, include=FALSE, echo=FALSE, fig.width=8, fig.height=6}
+g.ytemp<- wedat %>%
+          do_lp2(DATE, TMAX, TMIN, labMain="Daily Min and Max Temperatures, 1958-2018", brk=c(-30,110), a=0.05)
+
+g.mtemp<- wedat %>%
+          group_by(YEAR) %>%
+          summarize(MEAN.TMAX=mean(TMAX), MEAN.TMIN=mean(TMIN))%>%
+          do_lp2(YEAR, MEAN.TMAX, MEAN.TMIN, paste("Mean Yearly Temperature, 1958-2018"), brk=c(30,80))
+
+
+t.maxTlm<-lm(TMAX~DATE, wedat)%>%summary()
+
+t.minTlm<-lm(TMIN~DATE, wedat)%>%summary()
+
+t.PRCPlm<-lm(PRCP~DATE, wedat)%>%summary()
+t.PRCP_dayslm<-lm(days_between~DATE, rain_day)%>%summary()
+t.PRCP_drylm<-lm(rain_per_day~DATE, rain_day)%>%summary()
+t.PRCP_heavylm<-lm(n~YEAR, heavy_rain_day)%>%summary()
+t.cold_prcplm<-lm(days~YEAR, cold_prcp)%>%summary()
+
+t.PRCPlm
+
+mdl.PRCPlm<-lm(PRCP~DATE, wedat)
+mdl.PRCP_dayslm<-lm(days_between~DATE, rain_day)
+mdl.PRCP_drylm<-lm(rain_per_day~DATE, rain_day)
+
+# predict(mdl.PRCPlm, newdata=tibble(DATE=ydm("2030-10-04")))
+# predict(mdl.PRCP_dayslm, newdata=tibble(DATE=ydm("2030-10-04")))
+# predict(mdl.PRCP_drylm, newdata=tibble(DATE=ydm("2000-10-04")))
+
+predict_dates<-c("2020-07-04", "2030-07-04", "2040-07-04", "2050-07-04", 
+                 "2060-07-04", "2070-07-04", "2080-07-04", "2090-07-04", 
+                 "2100-07-04", "2110-07-04")
+
+pd.100yrPrcp<-kable(t(predict(mdl.PRCPlm, newdata=tibble(DATE=ydm(predict_dates))))*365,
+                    digits=1,
+                    caption="Predicted Rain per Year, inches",
+                    col.names=year(ymd((predict_dates))))
+
+pd.100yrRainDays<-kable(t(predict(mdl.PRCP_dayslm, newdata=tibble(DATE=ydm(c(predict_dates))))),
+                    digits=1,
+                    caption="Predicted Days Between Rainfall per Year",
+                    col.names=year(ymd((predict_dates))))
+
+pr.100yrRainPerDry<-kable(t(predict(mdl.PRCP_drylm, newdata=tibble(DATE=ydm(c(predict_dates))))),
+                        digits=1,
+                        caption="Predicted Inches of Rain per Day with Rainfall",
+                        col.names=year(ymd((predict_dates))))
+
+t.cold.day<-  wedat%>%
+              group_by(YEAR,MONTH)%>%
+              summarize(low.temp=min(TMIN))%>%
+              group_by(YEAR)%>%
+              mutate(coldest.month=low.temp==min(low.temp))%>%
+              filter(coldest.month==TRUE)%>%
+              group_by(MONTH)%>%
+              summarize(n=n())%>%
+              filter(n>0)%>%
+              kable(caption="Month of Coldest Day, 1958-2018")
+
+t.hot.day<-   wedat%>%
+              group_by(YEAR,MONTH)%>%
+              summarize(high.temp=max(TMAX))%>%
+              group_by(YEAR)%>%
+              mutate(hottest.month=high.temp==max(high.temp))%>%
+              filter(hottest.month==TRUE)%>%
+              group_by(MONTH)%>%
+              summarize(n=n())%>%
+              filter(n>0)%>%
+              kable(caption="Month of hottest day, 1958-2018")
+
+g.coldmonth<- wedat%>%
+              group_by(MONTH, YEAR)%>%
+              do_bxp1(MONTH, TMIN, 
+                    paste("Mean Low Temperature by Month "),
+                    brk=c(-30,110), fCol="blue")
+
+g.hotmonth<- wedat%>%
+              group_by(MONTH, YEAR)%>%
+              do_bxp1(MONTH, TMAX, 
+                    paste("Mean High Temperature by Month "),
+                    brk=c(-30,110), fCol="red")
+
+g.jantemp<-   wedat%>%
+              filter(MONTH==1)%>%
+              do_bxp1(YEAR, TMIN, 
+                    paste("Monthly Low Temperature Ranges for ",month(1, label=TRUE)),
+                    brk=c(-30,70), fCol="blue")
+g.aprtemp<-   wedat%>%
+              filter(MONTH==4)%>%
+              do_bxp1(YEAR, TMIN, 
+                    paste("Monthly Low Temperature Ranges for ",month(1, label=TRUE)),
+                    brk=c(10,80), fCol="blue")
+
+g.jultemp<-   wedat%>%
+              filter(MONTH==7)%>%
+              do_bxp1(YEAR, TMAX, 
+                    paste("Monthly High Temperature Ranges for ",month(7, label=TRUE)),
+                    brk=c(30,110), fCol="red")
+
+g.augtemp<-   wedat%>%
+              filter(MONTH==8)%>%
+              do_bxp1(YEAR, TMAX, 
+                    paste("Monthly High Temperature Ranges for ",month(8, label=TRUE)),
+                    brk=c(30,110), fCol="red")
+
+g.octtemp<-   wedat%>%
+              filter(MONTH==10)%>%
+              do_bxp1(YEAR, TMIN, 
+                    paste("Monthly Low Temperature Ranges for ",month(7, label=TRUE)),
+                    brk=c(-30,70), fCol="blue")
+
+g.novtemp<-    wedat%>%
+              filter(MONTH==11)%>%
+              do_bxp1(YEAR, TMIN, 
+                    paste("Monthly Low Temperature Ranges for ",month(11, label=TRUE)),
+                    brk=c(-30,70), fCol="blue")
+
+g.bdaytemp<-  wedat%>%
+              filter(MONTH==1, MDAY==4)%>%
+              do_lp2(DATE, TMAX, TMIN, paste("Yearly Temperature, 1/4/1979"),brk=c(0,80), ylab = "Temperature, °F")
+
+g.hotdays<-   wedat%>%
+              filter(TMAX>=100)%>%
+              group_by(YEAR)%>%
+              summarize(DAYS=n())%>%
+              do_colp1(xCol=YEAR, yCol=DAYS, fCol="red",
+                       labMain="Days at or above 100 °F", brk=c(0,10))  
+g.subzdays<-  wedat%>%
+              filter(TMIN<=0)%>%
+              group_by(YEAR)%>%
+              summarize(DAYS=n())%>%
+              do_colp1(xCol=YEAR, yCol=DAYS, fCol="blue",
+                       labMain="Days at or below 0 °F", brk=c(0,20))
+              
+g.frezdays<-  wedat%>%
+              filter(TMIN<=32)%>%
+              group_by(YEAR)%>%
+              summarize(DAYS=n())%>%
+              do_colp1(xCol=YEAR, yCol=DAYS, fCol="blue",
+                      labMain="Freezing Weather Days (32 deg F and below)", brk=c(0,150))+
+              labs(caption = "Data unavailable from 08-13-1997 to 03-31-1998")
+  
+g.snowpot<-   wedat%>%
+              filter(TMIN<=32&PRCP>0)%>%
+              group_by(YEAR)%>%
+              summarize(DAYS=n())%>%
+              do_colp1(xCol=YEAR, yCol=DAYS, fCol="blue",
+                      labMain="Freezing Weather with Precipitation Days (32 °F and below)",
+                      brk=c(0,10))+
+              labs(caption = "Data unavailable from 08-13-1997 to 03-31-1998")
+
+g.jan1964<-    wedat%>%
+              filter(MONTH==1, YEAR==1964)%>%
+              do_lp2(DATE, TMAX, TMIN, paste("Daily Temperature, January 1964"))
+              
+g.jan2014<-    wedat%>%
+              filter(MONTH==1, YEAR==2014)%>%
+              do_lp2(DATE, TMAX, TMIN, paste("Daily Temperature, January 2014"))
+
+g.dif50yrMax<-   wedat%>%
+              filter(MONTH==1, YEAR%in%c(1964, 2014))%>%
+              select(YEAR, MDAY, TMAX, TMIN)%>%
+              pivot_wider(names_from=YEAR, values_from=c(TMAX, TMIN))%>%
+              mutate(TMAX.dif=TMAX_2014-TMAX_1964, TMIN.dif=TMIN_2014-TMIN_1964)%>%
+              do_colp1(MDAY, TMAX.dif, fCol="red", 
+                     paste("Difference in Day-to-Day January Maximum Temperatures in 2014 vs. 1964"),
+                     brk=c(-50,50))+
+              labs(x="Day of Month")
+
+
+g.dif50yrMin<-   wedat%>%
+              filter(MONTH==1, YEAR%in%c(1964, 2014))%>%
+              select(YEAR, MDAY, TMAX, TMIN)%>%
+              pivot_wider(names_from=YEAR, values_from=c(TMAX, TMIN))%>%
+              mutate(TMAX.dif=TMAX_2014-TMAX_1964, TMIN.dif=TMIN_2014-TMIN_1964)%>%
+              do_colp1(MDAY, TMIN.dif, fCol="blue", 
+                     paste("Difference in Day-to-Day January Minimum Temperatures in 2014 vs. 1964"),
+                     brk=c(-50,50))+
+              labs(x="Day of Month")
+
+g.yr1964<-    wedat%>%
+              filter(YEAR==1964)%>%
+              do_lp2(DATE, TMAX, TMIN, paste("Daily Temperature, 1964"), brk=c(-30,110), ylab = "Temperature, °F")
+              
+g.yr2014<-    wedat%>%
+              filter(YEAR==2014)%>%
+              do_lp2(DATE, TMAX, TMIN, paste("Daily Temperature, 2014"), brk=c(-30,110), ylab = "Temperature, °F")  
+
+g.prcp_dayBTW<-do_colp1(tb=rain_day, 
+                   xCol=DATE, 
+                   yCol=days_between, 
+                   brk=c(0,20), 
+                   labMain="Days Between Rainfall, 1958-2018",
+                   fCol="purple", 
+                   mt=3)
+
+g.pcpt50yr<-  wedat %>%
+                do_lp1(
+                 xCol=DATE, 
+                 yCol=PRCP, 
+                 labMain="Daily Precipitation Ranges and Trend, 1958-2018", 
+                 brk=c(0,5), 
+                 fCol="purple", 
+                 mt=0.5, ylab = "Precipitation (inches)")
+
+g.hist.rainDay<-  rain_day%>%filter(rain_per_day>0)%>%  
+                      ggplot() +
+                      geom_histogram(aes(x=rain_per_day),binwidth=0.10, fill="purple", color="black")+
+                      labs(title="Amount of Rain per Precipitation Event")
+
+
+g.hvy_prpc<-  rain_day%>%filter(rain_per_day>0.5)%>%
+                  group_by(YEAR=year(DATE))%>%
+                  summarise(n=n())%>%
+                  do_colp1(
+                     xCol=YEAR, 
+                     yCol=n, 
+                     brk=c(0,30), 
+                     labMain="Number of Heavy Storms (Daily Rain > 0.5\")",
+                     fCol="purple", 
+                     mt=5)
+
+g.hvy_prpbox<-  rain_day%>%filter(rain_per_day>0.5)%>%
+                  do_bxp1(
+                     xCol=year(DATE), 
+                     yCol=rain_per_day, 
+                     brk=c(0,5), 
+                     labMain="Rain Amount during Heavy Storms (Daily Rain > 0.5\")",
+                     fCol="purple", 
+                     mt=1)  
+
+g.cold_prcp<-wedat%>%
+                filter(TMIN<=32&PRCP>0)%>%
+                group_by(YEAR)%>%
+                summarize(`days`=n())%>%
+                ggplot(aes(x=YEAR))+
+                  geom_col(aes(y=`days`), fill="grey")+
+                  labs(title="Cold with Precipitation Days (32 °F and Below)",
+                       caption = "Data unavailable from 08-13-1997 to 03-31-1998")
+
+```
+
+```{r image_out, fig.width = 8, fig.height = 6}
+fig_names <- list("g.mtemp", "g.coldmonth", "g.hotmonth", "g.hotdays", "g.frezdays",
+ "g.subzdays", "g.cold_prcp", "g.pcpt50yr", "g.hist.rainDay", "g.hvy_prpc",
+ "g.hvy_prpbox", "g.prcp_dayBTW")
+ 
+figs <- list(g.mtemp, g.coldmonth, g.hotmonth, g.hotdays, g.frezdays, g.subzdays, 
+          g.cold_prcp, g.pcpt50yr, g.hist.rainDay, g.hvy_prpc, g.hvy_prpbox, 
+          g.prcp_dayBTW)
+
+store_plot<-function(fig_name){
+  loc <- paste0("images/",fig_name,".png")
+  #png(loc, width = 3, height = 4, units = "in", res = 144)
+  png(loc, width = 4, height = 3, units = "in", res = 144)
+  print(eval(sym(fig_name))+theme_gray(base_size = 8))
+  dev.off()
+}
+
+
+lapply(fig_names, store_plot)
+```
+
+Challenges of an Aging Sewer System
+========================================================
+
+- Overfilled drains release both rainwater and sewage to environment
+- Metropolitan Sewer District operating under EPA consent decree to remediate overflows
+- Ongoing project designs based on current and future weather conditions
+- Repairs and new construction slowed by inconsistent weather
+
+***
+
+![Overflow](Sewer_Overflow_Sign.jpg)
+Ongoing Temperature Increases
+========================================================
+
+- Increase of 1 Deg. F over 50 years  
+- Aligned with common estimates for world temperature increases
+
+```{r mtemp, echo=FALSE}
+g.mtemp
+```
+
+Monthly Low Temperatures
+========================================================
+
+```{r cmonth, echo=FALSE}
+g.coldmonth
+```
+
+High Temperature Days
+========================================================
+
+- Temperatures above 100 Deg. F occurred in June - August
+- Cooling facilities for crews on hot days
+- Equipment maintenance challenges
+
+```{r hmonth, echo=FALSE}
+g.hotmonth
+```
+
+Increasing Number of Hot Days
+========================================================
+
+- No statistical change in number of days above 100  Deg. F
+```{r hday, echo=FALSE}
+g.hotdays
+```
+
+Consistent Number of Freezing Days
+========================================================
+
+- Freezing days increase potential for water line breakage
+
+```{r fday, echo=FALSE}
+g.frezdays
+```
+
+Slight Decrease in Subzero Days
+========================================================
+
+- Number of lowest temperature days decreasing
+
+```{r szday, echo=FALSE}
+g.subzdays
+```
+
+Consistent Number of Potential Frozen Rain Days
+========================================================
+
+
+```{r cprcp, echo=FALSE}
+g.cold_prcp
+```
+
+Consistent Number of Rain Days
+========================================================
+
+
+```{r p50, echo=FALSE}
+g.pcpt50yr
+```
+
+Heavy Rain Days Result in Sewer Overflows
+========================================================
+
+- Sewer design must account for normal high rainfall
+- Overflows on days with more than 0.5" rainfall
+- Acknowledge occurrence of multi-year highs
+
+```{r rday, echo=FALSE}
+g.hist.rainDay
+```
+
+
+No Trend in Heavy Rain Days
+========================================================
+
+- Heavy rain days:
+    - limit remediation schedule
+    - Impact combined sewer overflow occurrences
+- Number of heavy rain days not increasing
+- Expect median 16 rain days (11-18) per year
+
+```{r hv_prp, echo=FALSE}
+g.hvy_prpc
+```
+
+
+No Trend in Heavy Rain Days
+========================================================
+- Sewer capacity should consider observed maxima
+- Infrequent occurrences of 2" rainfall / day
+- Median heavy day rainfall under 1"
+
+
+```{r hv_rn, echo=FALSE}
+g.hvy_prpbox
+```
+
+Consistent Days Between Heavy Rainfall
+========================================================
+
+- Consecutive  rain days of rain prevent sewers from returning to baseline capacity 
+- Increase the likelihood of an overflow event
+
+```{r prp_day_btw, echo=FALSE}
+g.prcp_dayBTW
+```
+
+Complete Projects as Planned with Expected Weather Interruptions
+========================================================
+- Steady temperature change without heavy impact from variation
+- No expected changes in rainfall amounts 
+- Yearly high and low temperatures permit consistent working conditions
+- Monitor changes in trends throughout the decade
+
+Works Cited
+========================================================
+
+National Centers for Environmental Information (n.d.)  https://www.ncdc.noaa.gov/cdo-web/.  Accessed 4/13/2022.
+
+Metropolitan Sewer District of Greater Cincinnati & Hamilton County (2017, July).  Q2 2017 Consent Decree Report.  https://projectgroundwork.org/downloads/consentdecreequarterly/CD_Q2_2017.pdf.  Accessed 4/24/2022.
+
+Occupational Safety and Health Administration. (2017, September).  OSHA technical manual section III: chapter 4.  Heat stress.  https://www.osha.gov/otm/section-3-health-hazards/chapter-4.  Accessed 4/29/2022.
+
