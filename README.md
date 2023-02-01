@@ -58,19 +58,18 @@ Consistent Days Between Heavy Rainfall
 - Cooling facilities for crews on hot days
 - Equipment maintenance challenges
 
-![Mean Temp](images/g.hotmonth.png)
+![Hot Month](images/g.hotmonth.png)
 
 - No statistical change in number of days above 100  °F
-![Mean Temp](images/g.hotdays.png)
-
+![Hot Days](images/g.hotdays.png)
 
 Consistent Number of Freezing Days
 - Freezing days increase potential for water line breakage
 - Number of lowest temperature days decreasing
 
-![Mean Temp](images/g.coldmonth)
-![Mean Temp](images/g.frezdays.png)
-![Mean Temp](images/g.g.subzdays.png)
+![Cold Month](images/g.coldmonth)
+![Freeze Days](images/g.frezdays.png)
+![SubZero Days](images/g.g.subzdays.png)
 
 ## Limitations of Analysis
 
