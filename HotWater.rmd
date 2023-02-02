@@ -229,7 +229,8 @@ quantile(hvy_rain_btw$days_between, probs=seq(0,1, 0.25), na.rm=TRUE)
       
 ```
 
-```{r figs_for_report, include=FALSE, echo=FALSE, fig.width=8, fig.height=6}
+```{r temp_stats_for_report, include=FALSE, echo=FALSE, fig.width=8, fig.height=6}
+#What temperature trends are present on a monthly or yearly basis?
 g.ytemp<- wedat %>%
           do_lp2(DATE, TMAX, TMIN, labMain="Daily Min and Max Temperatures, 1958-2018", brk=c(-30,110), a=0.05)
 
@@ -241,74 +242,6 @@ g.mtemp<- wedat %>%
 t.maxTlm<-lm(TMAX~DATE, wedat)%>%summary()
 
 t.minTlm<-lm(TMIN~DATE, wedat)%>%summary()
-
-t.PRCPlm<-lm(PRCP~DATE, wedat)%>%summary()
-t.PRCP_dayslm<-lm(days_between~DATE, rain_day)%>%summary()
-t.PRCP_drylm<-lm(rain_per_day~DATE, rain_day)%>%summary()
-t.PRCP_heavylm<-lm(n~YEAR, heavy_rain_day)%>%summary()
-t.cold_prcplm<-lm(days~YEAR, cold_prcp)%>%summary()
-t.PRCP_rainiestlm <- lm(max~YEAR, rainiest_day) %>% summary()
-
-mdl.PRCPlm<-lm(PRCP~DATE, wedat)
-mdl.PRCP_dayslm<-lm(days_between~DATE, rain_day)
-mdl.PRCP_drylm<-lm(rain_per_day~DATE, rain_day)
-mdl.PRCP_hvyDayslm<-lm(n~YEAR, heavy_rain_day)
-mdl.PRCP_rainiestlm <- lm(max~YEAR, rainiest_day)
-
-predict_dates<-c("2020-07-04", "2030-07-04", "2040-07-04", "2050-07-04", 
-                 "2060-07-04", "2070-07-04", "2080-07-04", "2090-07-04", 
-                 "2100-07-04", "2110-07-04")
-
-pd.100yrPrcp<-kable(t(predict(mdl.PRCPlm, newdata=tibble(DATE=ydm(predict_dates))))*365,
-                    digits=1,
-                    caption="Predicted Rain per Year, inches",
-                    col.names=year(ymd((predict_dates))))
-
-pd.100yrRainDays<-kable(t(predict(mdl.PRCP_dayslm, newdata=tibble(DATE=ydm(c(predict_dates))))),
-                    digits=1,
-                    caption="Predicted Days Between Rainfall per Year",
-                    col.names=year(ymd((predict_dates))))
-
-pr.100yrRainPerDry<-kable(t(predict(mdl.PRCP_drylm, newdata=tibble(DATE=ydm(c(predict_dates))))),
-                        digits=1,
-                        caption="Predicted Inches of Rain per Day with Rainfall",
-                        col.names=year(ymd((predict_dates))))
-
-pr.100yrHvyRainPerYr<-kable(t(predict(mdl.PRCP_hvyDayslm, newdata=tibble(YEAR=year(c(predict_dates))))),
-                        digits=1,
-                        caption="Predicted Inches of Rain per Day with Rainfall",
-                        col.names=year(ymd((predict_dates))))
-
-pr.100yrRainiestDay <- kable(t(predict(mdl.PRCP_rainiestlm, newdata=tibble(YEAR = year(predict_dates)))),
-                        digits=1,
-                        caption="Predicted Heaviest Day of Rainfall per Year",
-                        col.names=year((predict_dates)))
-
-pr.100yrMaxRainInt <- predict(mdl.PRCP_rainiestlm,
-                              newdata=tibble(YEAR=year(c(predict_dates))), 
-                              interval = "prediction", 
-                              level = 0.95) %>%
-                      t() %>%
-                      kable(digits=1,
-                            caption="Predicted Heaviest Day of Rainfall per Year",
-                            col.names=year(predict_dates))
-
-#g.100yrMaxRain <- 
- #  predict(mdl.PRCP_rainiestlm, newdata = tibble(YEAR = year(predict_dates))) %>%
- #  setNames(year(predict_dates)) %>%
- #    t() %>%
- #    as_tibble %>%
- #    pivot_longer(cols = everything(),
- #                 names_to = "YEAR",
- #                 values_to ="Max_Rain") 
- # # %>%
-g.100yrMaxRain <- rainiest_day %>%
-  ggplot(aes(x = YEAR, y = max)) + 
-  geom_point() + 
-  geom_smooth(method = glm, 
-              se = TRUE, 
-              fullrange = TRUE) + 
-  xlim(c(1950,2110))
 
 t.cold.day<-  wedat%>%
               group_by(YEAR,MONTH)%>%
@@ -452,6 +385,73 @@ g.yr1964<-    wedat%>%
 g.yr2014<-    wedat%>%
               filter(YEAR==2014)%>%
               do_lp2(DATE, TMAX, TMIN, paste("Daily Temperature, 2014"), brk=c(-30,110), ylab = "Temperature, °F")  
+```
+```{r rain_predictions, include=FALSE, echo=FALSE, fig.width=8, fig.height=6}
+t.PRCPlm<-lm(PRCP~DATE, wedat)%>%summary()
+t.PRCP_dayslm<-lm(days_between~DATE, rain_day)%>%summary()
+t.PRCP_drylm<-lm(rain_per_day~DATE, rain_day)%>%summary()
+t.PRCP_heavylm<-lm(n~YEAR, heavy_rain_day)%>%summary()
+t.cold_prcplm<-lm(days~YEAR, cold_prcp)%>%summary()
+t.PRCP_rainiestlm <- lm(max~YEAR, rainiest_day) %>% summary()
+
+mdl.PRCPlm<-lm(PRCP~DATE, wedat)
+mdl.PRCP_dayslm<-lm(days_between~DATE, rain_day)
+mdl.PRCP_drylm<-lm(rain_per_day~DATE, rain_day)
+mdl.PRCP_hvyDayslm<-lm(n~YEAR, heavy_rain_day)
+mdl.PRCP_rainiestlm <- lm(max~YEAR, rainiest_day)
+
+predict_dates<-c("2020-07-04", "2030-07-04", "2040-07-04", "2050-07-04", 
+                 "2060-07-04", "2070-07-04", "2080-07-04", "2090-07-04", 
+                 "2100-07-04", "2110-07-04")
+
+pd.100yrPrcp<-kable(t(predict(mdl.PRCPlm, newdata=tibble(DATE=ydm(predict_dates))))*365,
+                    digits=1,
+                    caption="Predicted Rain per Year, inches",
+                    col.names=year(ymd((predict_dates))))
+
+pd.100yrRainDays<-kable(t(predict(mdl.PRCP_dayslm, newdata=tibble(DATE=ydm(c(predict_dates))))),
+                    digits=1,
+                    caption="Predicted Days Between Rainfall per Year",
+                    col.names=year(ymd((predict_dates))))
+
+pr.100yrRainPerDry<-kable(t(predict(mdl.PRCP_drylm, newdata=tibble(DATE=ydm(c(predict_dates))))),
+                        digits=1,
+                        caption="Predicted Inches of Rain per Day with Rainfall",
+                        col.names=year(ymd((predict_dates))))
+
+pr.100yrHvyRainPerYr<-kable(t(predict(mdl.PRCP_hvyDayslm, newdata=tibble(YEAR=year(c(predict_dates))))),
+                        digits=1,
+                        caption="Predicted Inches of Rain per Day with Rainfall",
+                        col.names=year(ymd((predict_dates))))
+
+pr.100yrRainiestDay <- kable(t(predict(mdl.PRCP_rainiestlm, newdata=tibble(YEAR = year(predict_dates)))),
+                        digits=1,
+                        caption="Predicted Heaviest Day of Rainfall per Year",
+                        col.names=year((predict_dates)))
+
+pr.100yrMaxRainInt <- predict(mdl.PRCP_rainiestlm,
+                              newdata=tibble(YEAR=year(c(predict_dates))), 
+                              interval = "prediction", 
+                              level = 0.95) %>%
+                      t() %>%
+                      kable(digits=1,
+                            caption="Predicted Heaviest Day of Rainfall per Year",
+                            col.names=year(predict_dates))
+```
+```{r rain_raphs, include=FALSE, echo=FALSE, fig.width=8, fig.height=6}
+g.100yrMaxRain <- rainiest_day %>%
+  ggplot(aes(x = YEAR, y = max)) + 
+  geom_point() + 
+  geom_smooth(method = glm, 
+              se = TRUE, 
+              fullrange = TRUE) + 
+  xlim(c(1950,2110)) + 
+  labs(title="Heaviest Day of Rain per Year", 
+       x="YEAR", 
+       y="Total Daily Rain, inches") +
+  theme(axis.text = element_text(angle = 90,
+                                 size = 4),
+        title = element_text(size = TITLE_SIZE))
 
 g.prcp_dayBTW<-do_colp1(tb=rain_day, 
                    xCol=DATE, 
@@ -509,8 +509,6 @@ g.cold_prcp<-wedat%>%
                   theme(title = element_text(size=TITLE_SIZE))
 
 ```
-
-Write images to disk
 
 ```{r image_out, fig.width = 8, fig.height = 6}
 fig_names <- list("g.mtemp", "g.coldmonth", "g.hotmonth", "g.hotdays", "g.frezdays",
