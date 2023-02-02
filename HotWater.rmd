@@ -73,9 +73,6 @@ do_lp2<-function(tb, xCol, yMaxCol, yMinCol, labMain, brk=c(-30,110), a=1, xlab 
                           name=ylab)+
        labs(title=labMain)+
        theme(axis.text=element_text(size=AXIS_SIZE), title = element_text(size=TITLE_SIZE))
-  #%>%
-    #show()
-
 }
 
 #do_lp1 provides standard scatterplot of single range output for this report
@@ -93,16 +90,13 @@ do_lp1<-function(tb, xCol, yCol, labMain, brk=c(-30,110), a=1, mt=1, fCol="purpl
   yCol<-enquo(yCol)
 
   ggplot(tb, aes(x=!!xCol))+
-       geom_point(aes(y=!!yCol), color=fCol, alpha=a)+
+       geom_point(aes(y=!!yCol), color=fCol, alpha=a, size = 1)+
        geom_smooth(aes(y=!!yCol),color="black",method="lm", formula =y~x)+   
        scale_y_continuous(limits=c(brk), 
                           breaks=seq(from=brk[1], to=brk[2], by=mt), 
                           name=ylab)+
        labs(title=labMain)+
        theme(axis.text=element_text(size=AXIS_SIZE), title = element_text(size=TITLE_SIZE))
-  #%>%
-    #show()
-
 }
 
 #do_bxp1 provides standardized boxplot output of single temp groups for this report
@@ -121,7 +115,7 @@ do_bxp1<-function(tb, xCol, yCol, labMain, brk=c(-30,110), fCol="red", a=1, mt=1
   yCol<-enquo(yCol)
 
   ggplot(tb, aes(x=as.factor(!!xCol), y=!!yCol)) +
-      geom_boxplot(fill=fCol)+
+      geom_boxplot(fill=fCol, size = 0.5)+
       scale_y_continuous(limits=brk, breaks=seq(from=brk[1], to=brk[2], by=mt)) +
       labs(title=labMain, x="YEAR")+
       theme(axis.text=element_text(angle=90, size=4), title = element_text(size=TITLE_SIZE))
@@ -168,7 +162,10 @@ do_colp_d<-function(tb, xCol, yCol, labMain, brk=c(0,50), fCol="red", mt=10){
       theme(axis.text=element_text(angle=90, size=AXIS_SIZE), title = element_text(size=TITLE_SIZE))
 }
 ```
+
 ```{r module_4_investigate, fig.width=18, include=FALSE, echo=FALSE}
+# Clean and pre-process data into subtables
+
 #Filtered tibble of freezing days with precipitation
 cold_prcp<-   wedat%>%
                 filter(TMIN<=32&PRCP>0)%>%
@@ -188,9 +185,13 @@ for(i in 2:length(rain_day$PRCP)){
 #Manually scrub data set due to gap in available data.  
 rain_day<-rain_day%>%mutate(days_between=ifelse(days_between==234, NA, days_between))
 
-heavy_rain_day<- rain_day%>%filter(rain_per_day>0.5)%>%
+heavy_rain_day<- rain_day %>% filter(rain_per_day > 0.5) %>%
                  group_by(YEAR=year(DATE))%>%
                  summarise(n=n())
+
+rainiest_day <- rain_day %>%
+  group_by(YEAR = year(DATE)) %>%
+  summarise(max = max(rain_per_day, na.rm = TRUE))
 
 #filter data for presence of significant rainfall.
 #0.1 inches is arbitrary.
@@ -237,7 +238,6 @@ g.mtemp<- wedat %>%
           summarize(MEAN.TMAX=mean(TMAX), MEAN.TMIN=mean(TMIN))%>%
           do_lp2(YEAR, MEAN.TMAX, MEAN.TMIN, paste("Mean Yearly Temperature, 1958-2018"), brk=c(30,80))
 
-
 t.maxTlm<-lm(TMAX~DATE, wedat)%>%summary()
 
 t.minTlm<-lm(TMIN~DATE, wedat)%>%summary()
@@ -247,16 +247,13 @@ t.PRCP_dayslm<-lm(days_between~DATE, rain_day)%>%summary()
 t.PRCP_drylm<-lm(rain_per_day~DATE, rain_day)%>%summary()
 t.PRCP_heavylm<-lm(n~YEAR, heavy_rain_day)%>%summary()
 t.cold_prcplm<-lm(days~YEAR, cold_prcp)%>%summary()
-
-t.PRCPlm
+t.PRCP_rainiestlm <- lm(max~YEAR, rainiest_day) %>% summary()
 
 mdl.PRCPlm<-lm(PRCP~DATE, wedat)
 mdl.PRCP_dayslm<-lm(days_between~DATE, rain_day)
 mdl.PRCP_drylm<-lm(rain_per_day~DATE, rain_day)
-
-# predict(mdl.PRCPlm, newdata=tibble(DATE=ydm("2030-10-04")))
-# predict(mdl.PRCP_dayslm, newdata=tibble(DATE=ydm("2030-10-04")))
-# predict(mdl.PRCP_drylm, newdata=tibble(DATE=ydm("2000-10-04")))
+mdl.PRCP_hvyDayslm<-lm(n~YEAR, heavy_rain_day)
+mdl.PRCP_rainiestlm <- lm(max~YEAR, rainiest_day)
 
 predict_dates<-c("2020-07-04", "2030-07-04", "2040-07-04", "2050-07-04", 
                  "2060-07-04", "2070-07-04", "2080-07-04", "2090-07-04", 
@@ -276,6 +273,42 @@ pr.100yrRainPerDry<-kable(t(predict(mdl.PRCP_drylm, newdata=tibble(DATE=ydm(c(pr
                         digits=1,
                         caption="Predicted Inches of Rain per Day with Rainfall",
                         col.names=year(ymd((predict_dates))))
+
+pr.100yrHvyRainPerYr<-kable(t(predict(mdl.PRCP_hvyDayslm, newdata=tibble(YEAR=year(c(predict_dates))))),
+                        digits=1,
+                        caption="Predicted Inches of Rain per Day with Rainfall",
+                        col.names=year(ymd((predict_dates))))
+
+pr.100yrRainiestDay <- kable(t(predict(mdl.PRCP_rainiestlm, newdata=tibble(YEAR = year(predict_dates)))),
+                        digits=1,
+                        caption="Predicted Heaviest Day of Rainfall per Year",
+                        col.names=year((predict_dates)))
+
+pr.100yrMaxRainInt <- predict(mdl.PRCP_rainiestlm,
+                              newdata=tibble(YEAR=year(c(predict_dates))), 
+                              interval = "prediction", 
+                              level = 0.95) %>%
+                      t() %>%
+                      kable(digits=1,
+                            caption="Predicted Heaviest Day of Rainfall per Year",
+                            col.names=year(predict_dates))
+
+#g.100yrMaxRain <- 
+ #  predict(mdl.PRCP_rainiestlm, newdata = tibble(YEAR = year(predict_dates))) %>%
+ #  setNames(year(predict_dates)) %>%
+ #    t() %>%
+ #    as_tibble %>%
+ #    pivot_longer(cols = everything(),
+ #                 names_to = "YEAR",
+ #                 values_to ="Max_Rain") 
+ # # %>%
+g.100yrMaxRain <- rainiest_day %>%
+  ggplot(aes(x = YEAR, y = max)) + 
+  geom_point() + 
+  geom_smooth(method = glm, 
+              se = TRUE, 
+              fullrange = TRUE) + 
+  xlim(c(1950,2110))
 
 t.cold.day<-  wedat%>%
               group_by(YEAR,MONTH)%>%
@@ -303,13 +336,15 @@ g.coldmonth<- wedat%>%
               group_by(MONTH, YEAR)%>%
               do_bxp1(MONTH, TMIN, 
                     paste("Mean Low Temperature by Month "),
-                    brk=c(-30,110), fCol="blue")
+                    brk=c(-30,110), fCol="blue") + 
+              xlab("Month")
 
 g.hotmonth<- wedat%>%
               group_by(MONTH, YEAR)%>%
               do_bxp1(MONTH, TMAX, 
                     paste("Mean High Temperature by Month "),
-                    brk=c(-30,110), fCol="red")
+                    brk=c(-30,110), fCol="red") + 
+              xlab("Month")
 
 g.jantemp<-   wedat%>%
               filter(MONTH==1)%>%
@@ -369,7 +404,7 @@ g.frezdays<-  wedat%>%
               group_by(YEAR)%>%
               summarize(DAYS=n())%>%
               do_colp1(xCol=YEAR, yCol=DAYS, fCol="blue",
-                      labMain="Freezing Weather Days (32 deg F and below)", brk=c(0,150))+
+                      labMain="Freezing Weather Days (32 °F and below)", brk=c(0,150))+
               labs(caption = "Data unavailable from 08-13-1997 to 03-31-1998")
   
 g.snowpot<-   wedat%>%
@@ -475,25 +510,22 @@ g.cold_prcp<-wedat%>%
 
 ```
 
+Write images to disk
+
 ```{r image_out, fig.width = 8, fig.height = 6}
 fig_names <- list("g.mtemp", "g.coldmonth", "g.hotmonth", "g.hotdays", "g.frezdays",
  "g.subzdays", "g.cold_prcp", "g.pcpt50yr", "g.hist.rainDay", "g.hvy_prpc",
- "g.hvy_prpbox", "g.prcp_dayBTW")
+ "g.hvy_prpbox", "g.prcp_dayBTW", "g.100yrMaxRain")
  
-figs <- list(g.mtemp, g.coldmonth, g.hotmonth, g.hotdays, g.frezdays, g.subzdays, 
-          g.cold_prcp, g.pcpt50yr, g.hist.rainDay, g.hvy_prpc, g.hvy_prpbox, 
-          g.prcp_dayBTW)
-
 store_plot <- function(fig_name){
   loc <- paste0("images/",fig_name,".png")
-  #png(loc, width = 3, height = 4, units = "in", res = 144)
   png(loc, width = 4, height = 3, units = "in", res = 144)
   print(eval(sym(fig_name)))
   dev.off()
 }
 
-
 lapply(fig_names, store_plot)
+
 ```
 
 Challenges of an Aging Sewer System
@@ -505,12 +537,10 @@ Challenges of an Aging Sewer System
 - Repairs and new construction slowed by inconsistent weather
 
 ***
-
-![Overflow](Sewer_Overflow_Sign.jpg)
 Ongoing Temperature Increases
 ========================================================
 
-- Increase of 1 Deg. F over 50 years  
+- Increase of 1 °F over 50 years  
 - Aligned with common estimates for world temperature increases
 
 ```{r mtemp, echo=FALSE}
@@ -527,7 +557,7 @@ g.coldmonth
 High Temperature Days
 ========================================================
 
-- Temperatures above 100 Deg. F occurred in June - August
+- Temperatures above 100 °F occurred in June - August
 - Cooling facilities for crews on hot days
 - Equipment maintenance challenges
 
@@ -538,7 +568,7 @@ g.hotmonth
 Increasing Number of Hot Days
 ========================================================
 
-- No statistical change in number of days above 100  Deg. F
+- No statistical change in number of days above 100 °F
 ```{r hday, echo=FALSE}
 g.hotdays
 ```
